@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<!--<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">-->
+<script type="text/javascript" src="//code.jquery.com/jquery.min.js"></script>
+<script type="text/javascript" src="js/three.tb.js"></script>
+<script type="text/javascript" src="js/DeviceOrientationControls.js"></script>
+</head>
+<body>
+<div id="stars" width="950" height="1600" style="background: black; width: 950px; height: 1600px;"></div>
+<style>
+body {
+background-color:#000000;
+}
+
+.exo {
+	position:absolute;
+	overflow: hidden;	/*拡大時にはみ出た部分を隠す*/
+	left:250px;
+	top:600px;
+	width: 900px;	/*画像の幅*/
+	height: 900px;	/*画像の高さ*/
+	pointer-events: none;
+	z-index:3;
+}
+
+
+
+.exo img {
+	display: block;
+	transition-duration: 0s;	/*変化に掛かる時間*/
+	transform: scale(0.001);	/*画像の拡大率*/
+}
+.exo.zoom img {
+	transform: scale(1);	/*画像の拡大率*/
+	transition-duration: 1s;	/*変化に掛かる時間*/
+}
+
+.info {
+display: inline-block;
+}
+.info .head {
+display: inline-block;
+	width:200px;
+}
+.info .body {
+display: inline-block;
+	width:700px;
+	text-size:xx-large;
+}
+
+.info img {
+	display: block;
+	width: 130px;	/*画像の幅*/
+	height: 130px;	/*画像の高さ*/
+}
+</style>
+
+<script type="text/javascript">
+var renderer, scene, camera, light, ambient, canvas;
+
+$(function() {
+	init();
+	$.getJSON("stars.json", drawStars);
+	main();
+});
+
+function init() {
+	var container = $('#stars');
+
+	renderer = new THREE.WebGLRenderer({ antialias: true });
+	renderer.setSize(container.innerWidth(), container.innerHeight());
+	renderer.setClearColor(0, 1);
+	container.append(renderer.domElement);
+	renderer.domElement.addEventListener( 'dblclick', onDocumentMouseDown, false );
+
+	scene = new THREE.Scene();
+
+	camera = new THREE.PerspectiveCamera(45, container.innerWidth() / container.innerHeight(), 0.0001, 8000);
+	camera.position = new THREE.Vector3(0, 20, 240);
+	camera.lookAt(new THREE.Vector3(0, 0, 0));
+	scene.add(camera);
+
+	controls = new THREE.TrackballControls(camera, renderer.domElement);
+// controls = new THREE.DeviceOrientationControls(camera, true);
+//    controls.connect();
+//    controls.update();
+	controls.maxDistance = 4000;
+}
+
+function main() {
+	controls.update();
+	renderer.render(scene, camera);
+	requestAnimationFrame(main);
+}
+
+
+function drawStars(stars) {
+	var geometry = new THREE.Geometry();
+	var material = new THREE.ParticleBasicMaterial({
+		vertexColors: true,
+		size: 1.0,
+		sizeAttenuation: false
+	});
+	var colors = [], brightStars = [];
+	for (var i in stars) {
+		var star = stars[i];
+		var ra = star.RA * Math.PI / 180;
+		var dec = star.Dec * Math.PI / 180;
+		var dist = 1000;
+		var x = dist * Math.cos(ra) * Math.cos(dec);
+		var y = dist * Math.sin(ra) * Math.cos(dec);
+		var z = dist * Math.sin(dec);
+		star.position = new THREE.Vector3(x, z, -y);
+ 
+		var alpha = 1 - star.Vmag / 10;
+		alpha = (alpha < 0.1) ? 0.1 : (alpha > 1 ? 1 : alpha);
+		star.color = new THREE.Color(parseInt(star.color));
+		star.color.r *= alpha;
+		star.color.g *= alpha;
+		star.color.b *= alpha;
+ 
+		if (star.Vmag < 5.1) {
+			brightStars.push(star);
+		} else {
+			geometry.vertices.push(star.position);
+			colors.push(star.color);
+		}
+	}
+	geometry.colors = colors;
+	var particleSystem = new THREE.ParticleSystem(geometry, material);
+	scene.add(particleSystem);
+ 
+	for (var i in brightStars) {
+		var star = brightStars[i];
+		var r = 4 - star.Vmag * 0.4;
+		var c = star.color;
+		var material = new THREE.MeshBasicMaterial({ color: c, blending: THREE.AdditiveBlending });
+		var mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 4, 4), material);
+		mesh.position = star.position;
+		scene.add(mesh);
+	}
+}
+function onDocumentMouseDown( event ) {
+	$('.exo').addClass('zoom');
+}
+var tapCount = 0 ;
+
+document.getElementById( "target" ).addEventListener( "touchstart", function() {
+	// シングルタップ判定
+	if( !tapCount ) {
+		++tapCount ;
+
+		setTimeout( function() {
+			tapCount = 0 ;
+		}, 350) ;
+
+	// ダブルタップ判定
+	} else {
+		e.preventDefault() ;
+		$('.exo').addClass('zoom');
+		tapCount = 0 ;
+	}
+} ) ;
+
+
+
+</script>
+
+
+<script>
+/*
+  window.addEventListener("devicemotion", function(event1){
+    var x = event1.accelerationIncludingGravity.x;
+    var y = event1.accelerationIncludingGravity.y;
+    var z = event1.accelerationIncludingGravity.z;
+         
+    var result1 = document.getElementById("result1");
+    result1.innerHTML = 
+      "X："+ Math.round(x * 10) / 10 +"<br>" +
+      "Y："+ Math.round(y * 10) / 10 +"<br>" + 
+      "Z："+ Math.round(z * 10) / 10;
+  }, true);
+       
+  window.addEventListener('deviceorientation', function(event2) {
+        var alpha = event2.alpha;
+        var beta = event2.beta;
+    var gamma = event2.gamma;
+         
+    result2.innerHTML = 
+      "alpha："+ Math.round(alpha * 10) / 10 +"<br>" +
+      "beta："+ Math.round(beta * 10) / 10 +"<br>" + 
+      "gamma："+ Math.round(gamma * 10) / 10;
+    }, true);
+
+    controls = new THREE.OrbitControls(camera, htmlelm);
+    controls.target.set(
+      camera.position.x + 0.15,
+      camera.position.y,
+      camera.position.z
+    );
+
+    controls.enableDamping = true;
+
+    // 視点変更(+にすると逆回転になる)
+    controls.rotateSpeed = -0.07;
+    // ズーム機能
+    controls.enableZoom = false;
+
+    // 表示する垂直アングル最大値の調整
+    controls.maxPolarAngle = 2.60;
+    controls.minPolarAngle = 0.50 ;
+  }
+*/
+
+</script>
+</body>
+</html>

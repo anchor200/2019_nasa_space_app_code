@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script type="text/javascript" src="//code.jquery.com/jquery.min.js"></script>
+<script type="text/javascript" src="js/three.tb.js"></script>
+<style>
+body {
+background-color:#000000;
+}
+</style>
+</head>
+<body>
+<div id="stars" width="950" height="1600" style="background: black; width: 950px; height: 1600px;"></div>
+<script type="text/javascript">
+var renderer, scene, camera, light, ambient, canvas;
+
+$(function() {
+  init();
+  $.getJSON("stars.json", drawStars);
+  main();
+});
+
+function init() {
+  var container = $('#stars');
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(container.innerWidth(), container.innerHeight());
+  renderer.setClearColor(0, 1);
+  container.append(renderer.domElement);
+
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(45, container.innerWidth() / container.innerHeight(), 0.0001, 8000);
+  camera.position = new THREE.Vector3(0, 20, 240);
+  camera.lookAt(new THREE.Vector3(0, 0, 0));
+  scene.add(camera);
+
+  controls = new THREE.TrackballControls(camera, renderer.domElement);
+  controls.maxDistance = 4000;
+}
+
+function main() {
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(main);
+}
+
+
+function drawStars(stars) {
+  var geometry = new THREE.Geometry();
+  var material = new THREE.ParticleBasicMaterial({
+    vertexColors: true,
+    size: 1.0,
+    sizeAttenuation: false
+  });
+  var colors = [], brightStars = [];
+  for (var i in stars) {
+    var star = stars[i];
+    var ra = star.RA * Math.PI / 180;
+    var dec = star.Dec * Math.PI / 180;
+    var dist = star.dist;
+    var x = dist * Math.cos(ra) * Math.cos(dec);
+    var y = dist * Math.sin(ra) * Math.cos(dec);
+    var z = dist * Math.sin(dec);
+    star.position = new THREE.Vector3(x, z, -y);
+ 
+    var alpha = 1 - star.Vmag / 10;
+    alpha = (alpha < 0.1) ? 0.1 : (alpha > 1 ? 1 : alpha);
+    star.color = new THREE.Color(parseInt(star.color));
+    star.color.r *= alpha;
+    star.color.g *= alpha;
+    star.color.b *= alpha;
+ 
+    if (star.Vmag < 5.1) {
+      brightStars.push(star);
+    } else {
+      geometry.vertices.push(star.position);
+      colors.push(star.color);
+    }
+  }
+  geometry.colors = colors;
+  var particleSystem = new THREE.ParticleSystem(geometry, material);
+  scene.add(particleSystem);
+ 
+  for (var i in brightStars) {
+    var star = brightStars[i];
+//    var r = 4 - star.Vmag * 0.4;
+    var r = 1 - star.Vmag * 0.1;
+	if (r < 0) r=0.01;
+    var c = star.color;
+    var material = new THREE.MeshBasicMaterial({ color: c, blending: THREE.AdditiveBlending });
+    var mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 4, 4), material);
+    mesh.position = star.position;
+    scene.add(mesh);
+  }
+}
+</script>
+</body>
+</html>
